@@ -187,11 +187,12 @@ float Volt_Reading(int portnum, int vdd, int *cad)
          if(owAccess(portnum))
          {
 	   /*  Convert V */
-            if(!owWriteByte(portnum,0xB4))
-            {
+	   owWriteByte(portnum,0xB4);
+	   //if(!owWriteByte(portnum,0xB4))
+           // {
 /*               output_status(LV_ALWAYS,(char *)"DIDN'T WRITE CORRECTLY\n"); */
-               return ret;
-            }
+           //    return ret;
+           // }
 
             busybyte = owReadByte(portnum);
          

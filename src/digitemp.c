@@ -230,7 +230,7 @@ float c2f( float temp )
    If humidity is <0 then it is invalid
    ----------------------------------------------------------------------- */
 int build_tf( char *time_format, char *format, int sensor, 
-              float temp_c, int humidity, unsigned char *sn )
+              float temp_c, float humidity, unsigned char *sn )
 {
   char	*tf_ptr,
   	*lf_ptr,
@@ -291,7 +291,7 @@ int build_tf( char *time_format, char *format, int sensor,
         case 'h' :
         	/* Relative humidity % */
 	        /* Change the specifier to a d */
-	        *(tk_ptr-1) = 'd';
+	        *(tk_ptr-1) = 'f';
 	        
 	        /* Pass it through sprintf */
 	        sprintf( temp, token, humidity );
@@ -957,7 +957,7 @@ int log_counter( int sensor, int page, unsigned long counter, unsigned char *sn 
 
    Used with temperatures
    ----------------------------------------------------------------------- */
-int log_humidity( int sensor, double temp_c, int humidity, unsigned char *sn )
+int log_humidity( int sensor, double temp_c, float humidity, unsigned char *sn )
 {
   char	temp[1024],
   	time_format[160];
@@ -1585,7 +1585,23 @@ int read_humidity( int sensor_family, int sensor )
   unsigned char	TempSN[8];
   int		try;  
   int           result = FALSE;
-	
+  float         slope=0.031,offset=0.8;//@5V 
+  owSerialNum( 0, &TempSN[0], TRUE );
+  if(TempSN[0]==0x26){
+    switch(TempSN[7]){
+    case 0xB8:
+      slope=0.029596181;
+      offset=0.810301;
+      //printf("HIH4000 sn411 parameters loaded!");
+      break;
+    default:
+      slope=0.031;
+      offset=0.8;
+      //printf("HIH4000 default parameters loaded!");
+      break;
+    }
+  }
+
   for( try = 0; try < MAX_READ_TRIES; try++ )
   {
     /* Read the temperature */
@@ -1600,7 +1616,7 @@ int read_humidity( int sensor_family, int sensor )
       if( (hum_voltage = Volt_Reading(0, 0, NULL)) != -1.0 )
       {
         /* Convert the measured voltage to humidity */
-        humidity = (((hum_voltage/sup_voltage) - 0.16) * 161.29)
+        humidity = (((hum_voltage/sup_voltage) - (offset/5.)) * (5./slope))
                       / (1.0546 - (0.00216 * temp_c));
         if( humidity > 100.0 )
           humidity = 100.0;
@@ -1617,7 +1633,6 @@ int read_humidity( int sensor_family, int sensor )
   }
 
   /* Log the temperature and humidity */
-  owSerialNum( 0, &TempSN[0], TRUE );
   log_humidity( sensor, temp_c, humidity, TempSN );
 
   return result;
